@@ -28,7 +28,7 @@ Connect with ```telnet``` for typing commands in interactive mode
 telnet localhost 4444
 ```
 
-### Program
+### Flash
 
 Program with ```program.bin``` from 0x00000000 address and then exit
 ```bash
@@ -39,8 +39,6 @@ Programming ```.hex``` or ```.elf``` file is almost the same - just remove start
 ```bash
 program program.hex verify reset
 ```
-
-### Erase
 
 Erase target flash pages from 0 to 3
 ```bash
@@ -77,4 +75,31 @@ dump_image dump.bin 0x00000000 0x400
 Load binary file to memory from ```0x20000000```
 ```bash
 load_image file.bin 0x20000000
+```
+
+### Trace
+
+Set TRACECLKIN=12000000 Hz and config TPIU to use SWO with NRZ (uart) coding.
+Messages will be saved to itm.fifo (can be file or pipe). Trace speed is set to maximum debugger can achieve.
+```bash
+tpiu config internal /tmp/itm.fifo uart off 72000000
+```
+
+Configure TPIU to let user capture trace output externally (with an additional UART or logic analyzer hardware).
+Trace speed is set to 115200.
+```bash
+tpiu config external uart off 72000000 115200
+```
+
+Enable trace stimulus port 0 (default for ITM_SendChar() CMSIS function)
+```bash
+itm port 0 1
+```
+
+### GDB
+
+If you want to send commands from GDB just add ```monitor``` prefix
+```bash
+monitor reset halt
+monitor tpiu config internal /tmp/itm.fifo uart off 72000000
 ```
