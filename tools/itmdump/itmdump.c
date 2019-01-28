@@ -267,6 +267,8 @@ static void show_swit(FILE *f, int c)
 	if (port + 1 == dump_swit) {
 		if (!read_varlen(f, c, &value))
 			return;
+		if (value == '\r')
+			return;
 		strcatc(swit_str, value);
 		if (value == '\n') {
 			PPRINT("%s", swit_str);
