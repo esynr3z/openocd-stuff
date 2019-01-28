@@ -1,6 +1,6 @@
 ## What is it?
 
-Collection of some [OpenOCD](http://openocd.org/) snippets.
+Collection of some [OpenOCD](http://openocd.org/) snippets and tools.
 Usually it's ```connect_*.cfg``` files to handle different debuggers and some target specific commands.
 
 ## OpenOCD cheatsheet
@@ -10,17 +10,17 @@ Usually it's ```connect_*.cfg``` files to handle different debuggers and some ta
 Specify directory with main openocd scripts and connect target.
 P.S. Scripts directory can be also specified with ```OPENOCD_SCRIPTS``` environment variable.
 ```bash
-openocd -s scripts -f connect_stlink-v2.cfg
+openocd -s scripts -f connect_stlink.cfg
 ```
 
 Connect and open other ```.cfg``` with commands
 ```bash
-openocd -f connect_stlink-v2.cfg -f ../generic/mass_erase.cfg
+openocd -f connect_stlink.cfg -f ../generic/mass_erase.cfg
 ```
 
 Connect and add some commands to command line, i.e. get target flash bank info and exit
 ```bash
-openocd -f connect_stlink-v2.cfg -c "flash info 0" -c "exit"
+openocd -f connect_stlink.cfg -c "flash info 0" -c "exit"
 ```
 
 Connect with ```telnet``` for typing commands in interactive mode
@@ -72,4 +72,9 @@ mww 0x20000000 0xDEADBEEF
 Get 1kB dump from ```0x00000000``` and save it to ```dump.bin```
 ```bash
 dump_image dump.bin 0x00000000 0x400
+```
+
+Load binary file to memory from ```0x20000000```
+```bash
+load_image file.bin 0x20000000
 ```
