@@ -40,9 +40,12 @@
 #include <errno.h>
 #include <libgen.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
+
+#define PPRINT(...) fprintf(stderr, "itmdump> " __VA_ARGS__)
 
 unsigned int dump_swit;
 
@@ -81,7 +84,7 @@ static void show_task(int port, unsigned data)
 		sprintf(buf, "code %d", code);
 		break;
 	}
-	printf("TASK %d, pri %d: %s",
+	PPRINT("TASK %d, pri %d: %s",
 		(data >> 0) & 0xff,
 		(data >> 8) & 0xff,
 		buf);
@@ -94,18 +97,18 @@ static void show_reserved(FILE *f, char *label, int c)
 	if (dump_swit)
 		return;
 
-	printf("%s - %#02x", label, c);
+	PPRINT("%s - %#02x", label, c);
 
 	for (i = 0; (c & 0x80) && i < 4; i++) {
 		c = fgetc(f);
 		if (c == EOF) {
-			printf("(ERROR %d - %s) ", errno, strerror(errno));
+			PPRINT("(ERROR %d - %s) ", errno, strerror(errno));
 			break;
 		}
-		printf(" %#02x", c);
+		PPRINT(" %#02x", c);
 	}
 
-	printf("\n");
+	PPRINT("\n");
 }
 
 static bool read_varlen(FILE *f, int c, unsigned *value)
@@ -126,7 +129,7 @@ static bool read_varlen(FILE *f, int c, unsigned *value)
 		size = 1;
 		break;
 	default:
-		printf("INVALID SIZE\n");
+		PPRINT("INVALID SIZE\n");
 		return false;
 	}
 
@@ -141,7 +144,7 @@ static bool read_varlen(FILE *f, int c, unsigned *value)
 	return true;
 
 err:
-	printf("(ERROR %d - %s)\n", errno, strerror(errno));
+	PPRINT("(ERROR %d - %s)\n", errno, strerror(errno));
 	return false;
 }
 
@@ -154,15 +157,15 @@ static void show_hard(FILE *f, int c)
 	if (dump_swit)
 		return;
 
-	printf("DWT - ");
+	PPRINT("DWT - ");
 
 	if (!read_varlen(f, c, &value))
 		return;
-	printf("%#x", value);
+	PPRINT("%#x", value);
 
 	switch (type) {
-	case 0:				/* event counter wrapping */
-		printf("overflow %s%s%s%s%s%s",
+	case 0:             /* event counter wrapping */
+		PPRINT("overflow %s%s%s%s%s%s",
 			(value & (1 << 5)) ? "cyc " : "",
 			(value & (1 << 4)) ? "fold " : "",
 			(value & (1 << 3)) ? "lsu " : "",
@@ -170,7 +173,7 @@ static void show_hard(FILE *f, int c)
 			(value & (1 << 1)) ? "exc " : "",
 			(value & (1 << 0)) ? "cpi " : "");
 		break;
-	case 1:				/* exception tracing */
+	case 1:             /* exception tracing */
 		switch (value >> 12) {
 		case 1:
 			label = "entry to";
@@ -185,50 +188,50 @@ static void show_hard(FILE *f, int c)
 			label = "?";
 			break;
 		}
-		printf("%s exception %d", label, value & 0x1ff);
+		PPRINT("%s exception %d", label, value & 0x1ff);
 		break;
-	case 2:				/* PC sampling */
+	case 2:             /* PC sampling */
 		if (c == 0x15)
-			printf("PC - sleep");
+			PPRINT("PC - sleep");
 		else
-			printf("PC - %#08x", value);
+			PPRINT("PC - %#08x", value);
 		break;
-	case 8:				/* data tracing, pc value */
+	case 8:             /* data tracing, pc value */
 	case 10:
 	case 12:
 	case 14:
-		printf("Data trace %d, PC %#08x", (c >> 4) & 3, value);
+		PPRINT("Data trace %d, PC %#08x", (c >> 4) & 3, value);
 		/* optionally followed by data value */
 		break;
-	case 9:				/* data tracing, address offset */
+	case 9:             /* data tracing, address offset */
 	case 11:
 	case 13:
 	case 15:
-		printf("Data trace %d, address offset %#04x",
+		PPRINT("Data trace %d, address offset %#04x",
 				(c >> 4) & 3, value);
 		/* always followed by data value */
 		break;
-	case 16 ... 23:			/* data tracing, data value */
-		printf("Data trace %d, ", (c >> 4) & 3);
+	case 16 ... 23:         /* data tracing, data value */
+		PPRINT("Data trace %d, ", (c >> 4) & 3);
 		label = (c & 0x8) ? "write" : "read";
 		switch (c & 3) {
 		case 3:
-			printf("word %s, value %#08x", label, value);
+			PPRINT("word %s, value %#08x", label, value);
 			break;
 		case 2:
-			printf("halfword %s, value %#04x", label, value);
+			PPRINT("halfword %s, value %#04x", label, value);
 			break;
 		case 1:
-			printf("byte %s, value %#02x", label, value);
+			PPRINT("byte %s, value %#02x", label, value);
 			break;
 		}
 		break;
 	default:
-		printf("UNDEFINED, rawtype: %x", type);
+		PPRINT("UNDEFINED, rawtype: %x", type);
 		break;
 	}
 
-	printf("\n");
+	PPRINT("\n");
 	return;
 }
 
@@ -247,6 +250,14 @@ struct {
 	{ .port = 31,  .show = show_task, },
 };
 
+char swit_str[1024] = "";
+
+static void strcatc(char* s, char c) {
+		int len = strlen(s);
+		s[len] = c;
+		s[len+1] = '\0';
+}
+
 static void show_swit(FILE *f, int c)
 {
 	unsigned port = c >> 3;
@@ -256,7 +267,11 @@ static void show_swit(FILE *f, int c)
 	if (port + 1 == dump_swit) {
 		if (!read_varlen(f, c, &value))
 			return;
-		printf("%c", value);
+		strcatc(swit_str, value);
+		if (value == '\n') {
+			PPRINT("%s", swit_str);
+			swit_str[0] = '\0';
+		}
 		return;
 	}
 
@@ -266,19 +281,19 @@ static void show_swit(FILE *f, int c)
 	if (dump_swit)
 		return;
 
-	printf("SWIT %u - ", port);
+	PPRINT("SWIT %u - ", port);
 
-	printf("%#08x", value);
+	PPRINT("%#08x", value);
 
 	for (i = 0; i < sizeof(format) / sizeof(format[0]); i++) {
 		if (format[i].port == port) {
-			printf(", ");
+			PPRINT(", ");
 			format[i].show(port, value);
 			break;
 		}
 	}
 
-	printf("\n");
+	PPRINT("\n");
 	return;
 }
 
@@ -291,14 +306,14 @@ static void show_timestamp(FILE *f, int c)
 	if (dump_swit)
 		return;
 
-	printf("TIMESTAMP - ");
+	PPRINT("TIMESTAMP - ");
 
 	/* Format 2: header only */
 	if (!(c & 0x80)) {
 		switch (c) {
-		case 0:		/* sync packet -- coding error! */
-		case 0x70:	/* overflow -- ditto! */
-			printf("ERROR - %#02x\n", c);
+		case 0:     /* sync packet -- coding error! */
+		case 0x70:  /* overflow -- ditto! */
+			PPRINT("ERROR - %#02x\n", c);
 			break;
 		default:
 			/* synchronous to ITM */
@@ -358,11 +373,11 @@ static void show_timestamp(FILE *f, int c)
 
 done:
 	/* REVISIT should we try to convert from delta values?  */
-	printf("+%u%s\n", counter, label);
+	PPRINT("+%u%s\n", counter, label);
 	return;
 
 err:
-	printf("(ERROR %d - %s) ", errno, strerror(errno));
+	PPRINT("(ERROR %d - %s) ", errno, strerror(errno));
 	goto done;
 }
 
@@ -386,7 +401,7 @@ int main(int argc, char **argv)
 			dump_swit = atoi(optarg);
 			break;
 		default:
-			fprintf(stderr, "usage: %s [-f input]",
+			PPRINT("usage: %s [-f input]",
 				basename(argv[0]));
 			return 1;
 		}
@@ -412,11 +427,11 @@ int main(int argc, char **argv)
 			}
 			c = fgetc(f);
 			if (c == 0x80) {
-				printf("SYNC\n");
+				PPRINT("SYNC\n");
 				continue;
 			}
 bad_sync:
-			printf("BAD SYNC\n");
+			PPRINT("BAD SYNC\n");
 			continue;
 		}
 
@@ -426,23 +441,23 @@ bad_sync:
 			 * Timestamp and SWIT can happen.  Non-ITM too?
 			 */
 			overflow = true;
-			printf("OVERFLOW ...\n");
+			PPRINT("OVERFLOW ...\n");
 			continue;
 		}
 		overflow = false;
 
 		switch (c & 0x0f) {
-		case 0x00:		/* Timestamp */
+		case 0x00:      /* Timestamp */
 			show_timestamp(f, c);
 			break;
-		case 0x04:		/* "Reserved" */
+		case 0x04:      /* "Reserved" */
 			show_reserved(f, "RESERVED", c);
 			break;
-		case 0x08:		/* ITM Extension */
+		case 0x08:      /* ITM Extension */
 			/* FIXME someday, handle these ...  */
 			show_reserved(f, "ITM EXT", c);
 			break;
-		case 0x0c:		/* DWT Extension */
+		case 0x0c:      /* DWT Extension */
 			show_reserved(f, "DWT EXT", c);
 			break;
 		default:
