@@ -1,5 +1,6 @@
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <termios.h>
@@ -7,21 +8,13 @@
 
 #define PPRINT(...) fprintf(stderr, "uartdump> " __VA_ARGS__)
 
-unsigned int dump_line = 0;
 char line_str[1024] = "";
-
-static void strcatc(char* s, char c)
-{
-    int len = strlen(s);
-    s[len] = c;
-    s[len + 1] = '\0';
-}
 
 int main(int argc, char** argv)
 {
-    FILE* f = NULL;
-    int c;
     int fd;
+    int c;
+    int n;
     int int_baud;
     speed_t baud = B9600;
     int rts_flag, dtr_flag;
@@ -74,20 +67,11 @@ int main(int argc, char** argv)
     tcsetattr(fd, TCSANOW, &settings);
     tcflush(fd, TCOFLUSH);
 
-    f = fdopen(fd, "r");
-    if (!f) {
-        PPRINT("Open error!\n");
-        return 1;
-    }
-
-    while ((c = getc(f)) != EOF) {
-        if (c != '\r') {
-            strcatc(line_str, c);
-            if (c == '\n') {
-                PPRINT("%s", line_str);
-                line_str[0] = '\0';
-            }
-        }
+    while (1) {
+        n = read(fd, line_str, sizeof(line_str) - 1);
+        line_str[n] = '\0';
+        PPRINT("%s", line_str);
+        line_str[0] = '\0';
     }
 
     return 0;
