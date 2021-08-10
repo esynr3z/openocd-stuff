@@ -1,0 +1,63 @@
+{
+    "version":"0.2.0",
+    "configurations": [
+        {
+            "name": "Launch STM32F411 (OpenOCD, STLink)",
+            "type": "cortex-debug",
+            "request": "launch",
+            "cwd": "${workspaceRoot}",
+            "executable": "${command:cmake.launchTargetPath}",
+            "servertype": "openocd",
+            "searchDir": [
+                "${workspaceRoot}",
+                "${env:OPENOCD_SCRIPTS}",
+            ],
+            "configFiles": [
+                "${env:OPENOCD_STUFF}/target/stm32f4x/connect_stlink.cfg"
+            ],
+            "preLaunchCommands": [
+                "set mem inaccessible-by-default off",
+                "set verbose on"
+            ],
+            "postLaunchCommands": [
+                "monitor reset run",
+                "monitor sleep 200",
+                "monitor reset halt"
+            ],
+            "postRestartCommands": [
+                "monitor reset halt",
+                "monitor gdb_sync",
+                "stepi"
+            ],
+            "svdFile": "${env:OPENOCD_STUFF}/target/stm32f4x/STM32F411.svd",
+            "runToMain": true,
+            "showDevDebugOutput": true,
+        },
+        {
+            "name": "Attach STM32F411 (OpenOCD, STLink)",
+            "cwd": "${workspaceRoot}",
+            "executable": "${command:cmake.launchTargetPath}",
+            "request": "attach",
+            "type": "cortex-debug",
+            "servertype": "openocd",
+            "searchDir": [
+                "${workspaceRoot}",
+                "${env:OPENOCD_SCRIPTS}",
+            ],
+            "configFiles": [
+                "${env:OPENOCD_STUFF}/target/stm32f4x/attach_stlink.cfg",
+            ],
+            "overrideAttachCommands": [
+                "set mem inaccessible-by-default off",
+                "monitor halt"
+            ],
+            "postRestartCommands": [
+                "monitor reset halt",
+                "monitor gdb_sync",
+                "stepi"
+            ],
+            "svdFile": "${env:OPENOCD_STUFF}/target/stm32f4x/STM32F411.svd",
+            "showDevDebugOutput": true,
+        },
+    ]
+}
